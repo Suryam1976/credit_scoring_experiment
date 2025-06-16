@@ -1,0 +1,218 @@
+# Credit Scoring Experiment - Git Ignore File
+# =====================================
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+cover/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IPython
+profile_default/
+ipython_config.py
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# Experiment-specific data and results
+# ====================================
+
+# Raw and processed data (except sample data)
+data/raw/*.csv
+data/raw/*.txt
+data/raw/*.xlsx
+data/processed/*.pkl
+data/processed/*.csv
+
+# Model artifacts and results
+results/trained_models.pkl
+results/calibrated_models.pkl
+results/model_metrics.csv
+results/calibration_comparison.csv
+results/business_impact_analysis.csv
+
+# Generated visualizations
+results/visualizations/*.png
+results/visualizations/*.pdf
+results/visualizations/*.svg
+results/visualizations/*.html
+
+# Temporary files
+*.tmp
+*.temp
+temp/
+tmp/
+
+# Log files
+*.log
+logs/
+
+# Large files that shouldn't be in git
+*.h5
+*.hdf5
+*.pickle
+*.joblib
+
+# Experiment outputs (keep structure, ignore content)
+# Keep directory structure but ignore generated files
+results/visualizations/.gitkeep
+data/raw/.gitkeep
+data/processed/.gitkeep
+
+# Documentation builds
+docs/_build/
+docs/build/
+
+# Backup files
+*.bak
+*.backup
+*~
+
+# Compressed files
+*.zip
+*.tar.gz
+*.rar
+
+# Configuration files with sensitive data
+config/secrets.json
+config/credentials.json
+.env.local
+.env.production
+
+# Notebook outputs (optional - uncomment if you want to track notebooks without outputs)
+# *.ipynb
+
+# Cache directories
+.cache/
+__pycache__/
+
+# Virtual environment
+credit_scoring_env/
+mlenv/
+
+# Platform specific
+# Windows
+*.lnk
+
+# macOS
+.AppleDouble
+.LSOverride
+
+# Linux
+*~
+
+# Editor backups
+*.orig
+*.rej
+
+# Temporary experiment files
+scratch/
+experiments/
+temp_analysis/
+
+# Large datasets (if you add them later)
+data/external/
+data/large_datasets/
+
+# Model checkpoints and weights
+checkpoints/
+weights/
+models/saved_models/
+
+# Profiling data
+*.prof
+
+# Memory profiling
+*.mprof
+
+# Coverage reports
+.coverage
+coverage/
+
+# PyCharm
+.idea/
+
+# Visual Studio Code
+.vscode/
+
+# Spyder
+.spyderproject
+.spyproject
+
+# Rope
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
