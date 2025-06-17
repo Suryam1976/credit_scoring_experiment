@@ -102,9 +102,15 @@ class BusinessImpactAnalyzer:
                         approval_rate = n_approved / len(y_test)
                         calibration_error = abs(predicted_default_rate - actual_default_rate)
                         
+                        # Create method display name
+                        method_display = variant_name.title()
+                        if variant_name == 'temperature' and 'optimal_temperature' in variant_data:
+                            temp_val = variant_data['optimal_temperature']
+                            method_display = f"Temperature (T={temp_val:.2f})"
+                        
                         business_results.append({
                             'Model': model_name,
-                            'Method': variant_name.title(),
+                            'Method': method_display,
                             'Full_Name': variant_data['name'],
                             'Approval_Rate': approval_rate,
                             'Portfolio_Approved': portfolio_approved,

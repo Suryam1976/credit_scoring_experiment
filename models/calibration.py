@@ -9,6 +9,11 @@ Author: Credit Scoring Experiment
 Date: June 2025
 """
 
+import os
+import sys
+# Add the project root directory to the Python path
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import numpy as np
 import pandas as pd
 import pickle
@@ -21,11 +26,15 @@ from sklearn.isotonic import IsotonicRegression
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import cross_val_predict
 from sklearn.metrics import brier_score_loss, log_loss
+from scipy.optimize import minimize_scalar
 import scipy.stats as stats
 
 # Visualization
 import matplotlib.pyplot as plt
 import seaborn as sns
+
+# Import the shared model class
+from models.model_utils import TemperatureScaledModel
 
 class CalibrationAnalyzer:
     """
@@ -291,6 +300,108 @@ class CalibrationAnalyzer:
         print("✅ Isotonic regression applied")
         return calibrated_model
     
+    def _get_model_logits(self, model: Any, X: np.ndarray) -> np.ndarray:
+        """
+        Extract logits from different model types
+        
+        Args:
+            model: Trained model
+            X: Input features
+            
+        Returns:
+            Raw logits (before sigmoid/softmax)
+        """
+        if hasattr(model, 'decision_function'):
+            # For SVM, Logistic Regression
+            return model.decision_function(X)
+        elif hasattr(model, 'predict_proba'):
+            # For tree-based models, convert probabilities to logits
+            probs = model.predict_proba(X)[:, 1]
+            # Clip probabilities to avoid log(0) or log(1)
+            probs = np.clip(probs, 1e-15, 1 - 1e-15)
+            logits = np.log(probs / (1 - probs))
+            return logits
+        else:
+            raise ValueError(f"Model {type(model)} doesn't support logit extraction")
+    
+    def _temperature_scaling(self, logits: np.ndarray, temperature: float) -> np.ndarray:
+        """
+        Apply temperature scaling to logits
+        
+        Args:
+            logits: Raw logits from model
+            temperature: Temperature parameter T
+            
+        Returns:
+            Calibrated probabilities
+        """
+        return 1 / (1 + np.exp(-logits / temperature))
+    
+    def _find_optimal_temperature(self, val_logits: np.ndarray, val_labels: np.ndarray) -> float:
+        """
+        Find optimal temperature using validation set
+        
+        Args:
+            val_logits: Validation set logits
+            val_labels: Validation set true labels
+            
+        Returns:
+            Optimal temperature value
+        """
+        def negative_log_likelihood(temperature):
+            # Apply temperature scaling
+            probs = self._temperature_scaling(val_logits, temperature)
+            
+            # Calculate negative log-likelihood
+            eps = 1e-15  # For numerical stability
+            probs = np.clip(probs, eps, 1 - eps)
+            
+            nll = -np.mean(
+                val_labels * np.log(probs) + 
+                (1 - val_labels) * np.log(1 - probs)
+            )
+            return nll
+        
+        # Optimize temperature between 0.1 and 10.0
+        result = minimize_scalar(
+            negative_log_likelihood, 
+            bounds=(0.1, 10.0), 
+            method='bounded'
+        )
+        
+        return result.x
+    
+    def apply_temperature_scaling(self, model: Any, X_cal: np.ndarray, y_cal: np.ndarray) -> Tuple[Any, float]:
+        """
+        Apply temperature scaling calibration to a model
+        
+        Args:
+            model: Trained model
+            X_cal: Calibration features
+            y_cal: Calibration labels
+        
+        Returns:
+            Tuple of (calibrated_model, optimal_temperature)
+        """
+        print("🌡️ Applying temperature scaling...")
+        
+        # Get logits from validation set
+        val_logits = self._get_model_logits(model, X_cal)
+        
+        # Find optimal temperature
+        optimal_temperature = self._find_optimal_temperature(val_logits, y_cal)
+        
+        # Create calibrated model using the class defined at module level
+        calibrated_model = TemperatureScaledModel(
+            model, 
+            optimal_temperature,
+            self._get_model_logits,  # Pass the method reference
+            self._temperature_scaling  # Pass the method reference
+        )
+        
+        print(f"✅ Temperature scaling applied (T = {optimal_temperature:.3f})")
+        return calibrated_model, optimal_temperature  # Return both model and temperature
+    
     def generate_calibration_report(self, models_path: str = None, splits_path: str = None) -> Dict[str, Any]:
         """
         Generate a comprehensive calibration analysis report
@@ -383,6 +494,24 @@ class CalibrationAnalyzer:
             except Exception as e:
                 print(f"⚠️ Isotonic regression failed for {model_name}: {e}")
             
+            # Apply Temperature scaling
+            try:
+                temp_model, optimal_temp = self.apply_temperature_scaling(model, X_val, y_val)
+                temp_probs = temp_model.predict_proba(X_test)[:, 1]
+                temp_metrics = self.calculate_calibration_metrics(y_test, temp_probs)
+                
+                # Add temperature value to metrics for analysis
+                temp_metrics['temperature'] = optimal_temp
+                
+                model_results['temperature'] = {
+                    'model': temp_model,
+                    'name': f"{model_name}_Temperature",
+                    'metrics': temp_metrics,
+                    'optimal_temperature': optimal_temp
+                }
+            except Exception as e:
+                print(f"⚠️ Temperature scaling failed for {model_name}: {e}")
+            
             calibration_results[model_name] = model_results
         
         # Save calibrated models
@@ -403,12 +532,34 @@ class CalibrationAnalyzer:
         
         comparison_data = []
         
+        # Save model predictions for visualization
+        data_splits = self.load_data_splits()
+        X_test = data_splits['X_test']
+        
+        # Create a dictionary to store predictions
+        model_predictions = {}
+        
+        for model_name, model_variants in calibration_results.items():
+            for variant_name, variant_data in model_variants.items():
+                if 'model' in variant_data:
+                    # Generate and store predictions
+                    model = variant_data['model']
+                    try:
+                        y_prob = model.predict_proba(X_test)[:, 1]
+                        model_predictions[variant_data['name']] = y_prob
+                    except Exception as e:
+                        print(f"⚠️ Could not generate predictions for {variant_data['name']}: {e}")
+        
+        # Save predictions separately
+        with open(self.results_dir / "model_predictions.pkl", 'wb') as f:
+            pickle.dump(model_predictions, f)
+        
         for model_name, model_variants in calibration_results.items():
             for variant_name, variant_data in model_variants.items():
                 if 'metrics' in variant_data:
                     metrics = variant_data['metrics']
                     
-                    comparison_data.append({
+                    row_data = {
                         'Model': model_name,
                         'Calibration_Method': variant_name.title(),
                         'Full_Name': variant_data['name'],
@@ -420,7 +571,15 @@ class CalibrationAnalyzer:
                         'Resolution': metrics['resolution'],
                         'HL_Statistic': metrics['hosmer_lemeshow_stat'],
                         'HL_P_Value': metrics['hosmer_lemeshow_pvalue']
-                    })
+                    }
+                    
+                    # Add temperature value if available
+                    if 'temperature' in metrics:
+                        row_data['Temperature_Value'] = metrics['temperature']
+                    else:
+                        row_data['Temperature_Value'] = None
+                    
+                    comparison_data.append(row_data)
         
         comparison_df = pd.DataFrame(comparison_data)
         comparison_df = comparison_df.sort_values('ECE')
@@ -429,7 +588,28 @@ class CalibrationAnalyzer:
         comparison_df.to_csv(self.results_dir / "calibration_comparison.csv", index=False)
         
         print("\n🏆 Best Calibrated Models (by ECE):")
-        print(comparison_df[['Full_Name', 'ECE', 'Brier_Score']].head().to_string(index=False))
+        display_cols = ['Full_Name', 'ECE', 'Brier_Score']
+        if 'Temperature_Value' in comparison_df.columns:
+            display_cols.append('Temperature_Value')
+        print(comparison_df[display_cols].head().to_string(index=False))
+        
+        # Print temperature scaling analysis
+        temp_results = comparison_df[comparison_df['Calibration_Method'] == 'Temperature']
+        if len(temp_results) > 0:
+            print("\n🌡️ Temperature Scaling Analysis:")
+            for _, row in temp_results.iterrows():
+                temp_val = row['Temperature_Value']
+                if temp_val is not None:
+                    if temp_val > 3.0:
+                        confidence_level = "severely overconfident"
+                    elif temp_val > 1.5:
+                        confidence_level = "moderately overconfident"
+                    elif temp_val < 0.7:
+                        confidence_level = "underconfident"
+                    else:
+                        confidence_level = "well-calibrated"
+                    
+                    print(f"   {row['Model']}: T = {temp_val:.3f} (📊 {confidence_level})")
 
 def main():
     """
@@ -468,3 +648,11 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+
+
+
+
+
+

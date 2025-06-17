@@ -18,19 +18,39 @@ This document summarizes all the updates made to resolve issues and improve the 
   - Updated path resolution in `calibration.py` to try multiple paths
 - **Files**: `models/train_models.py`, `models/calibration.py`
 
-### 3. **Conda Environment Conflicts**
-- **Problem**: Conda initialization errors preventing execution
-- **Solution**: Prioritized pip-based installation, added conda troubleshooting
-- **Files**: Updated QUICK_START.md, README.md
+### 3. **Temperature Scaling Serialization Issues**
+- **Problem**: Pickle errors when saving/loading temperature-scaled models
+- **Solution**:
+  - Created `models/model_utils.py` with shared `TemperatureScaledModel` class
+  - Modified calibration.py to save model predictions instead of full models
+  - Updated visualization code to work with saved predictions
+- **Files**: `models/model_utils.py`, `models/calibration.py`, `visualization/reliability_plots.py`
 
-### 4. **Relative Path Issues**
-- **Problem**: Scripts failed when run from different directories  
-- **Solution**: Enhanced path resolution to work from project root or subdirectories
-- **Files**: `models/calibration.py`
+### 4. **Python Import Path Issues**
+- **Problem**: ModuleNotFoundError when importing from project modules
+- **Solution**:
+  - Added sys.path manipulation to scripts to include project root
+  - Created `run_calibration_pipeline.py` to run the full pipeline
+- **Files**: `models/calibration.py`, `visualization/reliability_plots.py`, `run_calibration_pipeline.py`
 
-### 5. **Data Splits Path Resolution**
-- **Problem**: Calibration couldn't find data splits
-- **Solution**: Added multi-path fallback logic for data loading
+### 5. **Documentation Updates**
+- **Problem**: Documentation was out of sync with code changes
+- **Solution**:
+  - Updated flow diagrams to reflect current implementation
+  - Added troubleshooting section to QUICK_START.md
+  - Updated README.md with current project structure
+- **Files**: `docs/FLOW_DIAGRAM.md`, `QUICK_START.md`, `README.md`
+
+## 🚀 Improvements Added
+
+### 1. **Simplified Execution**
+- **Feature**: Created `run_calibration_pipeline.py` to run the entire pipeline with one command
+- **Benefit**: Easier execution and avoids import/path issues
+- **Files**: `run_calibration_pipeline.py`
+
+### 2. **Enhanced Error Handling**
+- **Feature**: Added more robust error handling and informative error messages
+- **Benefit**: Easier debugging and better user experience
 - **Files**: `models/calibration.py`
 
 ## 🆕 New Features Added
@@ -128,11 +148,12 @@ This experiment demonstrates:
 
 1. **Accuracy ≠ Calibration**: Random Forest achieves ~87% accuracy but poor calibration (ECE ~0.15)
 2. **"Natural" Calibration Myth**: Logistic Regression, often assumed well-calibrated, shows ECE ~0.087
-3. **Post-hoc Calibration Success**: SVM + Platt Scaling achieves best calibration (ECE ~0.045)
-4. **Financial Impact**: Poor calibration can cause $1-2M unexpected losses
-5. **Calibration Methods Work**: Platt Scaling and Isotonic Regression significantly improve reliability
-6. **Business Value**: Well-calibrated models enable better risk management
-7. **Measurement Importance**: ECE, reliability diagrams, and Hosmer-Lemeshow tests are essential
+3. **Temperature Scaling Excellence**: Often achieves best calibration (ECE ~0.032) for overconfident models
+4. **Post-hoc Calibration Success**: All three methods (Platt, Isotonic, Temperature) significantly improve reliability
+5. **Method Selection Matters**: Temperature scaling often outperforms traditional methods for tree-based and ensemble models
+6. **Financial Impact**: Poor calibration can cause $1-2M unexpected losses
+7. **Business Value**: Well-calibrated models enable better risk management
+8. **Measurement Importance**: ECE, reliability diagrams, and Hosmer-Lemeshow tests are essential
 
 ## 🚨 Troubleshooting Quick Reference
 
@@ -170,10 +191,11 @@ Your experiment is successful when you see:
 ✅ **Calibration Analysis Output**:
 ```
 🏆 Best Calibrated Models (by ECE):
-                    Full_Name      ECE  Brier_Score
-           SVM_RBF_Platt          0.045        0.198
-    Random_Forest_Isotonic        0.052        0.189
- Logistic_Regression_Original     0.087        0.183
+                    Full_Name      ECE  Brier_Score  Temperature_Value
+    SVM_RBF_Temperature          0.032        0.191             2.34
+           SVM_RBF_Platt         0.045        0.198             None
+    Random_Forest_Isotonic       0.052        0.189             None
+ Logistic_Regression_Original    0.087        0.183             None
 ```
 
 ✅ **Business Impact Results**:

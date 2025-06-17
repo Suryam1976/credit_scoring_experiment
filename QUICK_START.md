@@ -16,10 +16,7 @@ pip install -r requirements.txt
 python setup_dirs.py
 
 # Run the complete experiment pipeline
-python models/train_models.py --prepare-data --train-all
-python models/calibration.py
-python visualization/reliability_plots.py
-python visualization/business_impact.py
+python run_calibration_pipeline.py
 ```
 
 ### Option 2: Step-by-Step Execution
@@ -62,58 +59,90 @@ python setup_dirs.py
 jupyter notebook notebooks/01_calibration_experiment.ipynb
 ```
 
-## 📊 Expected Results
+## 📋 Expected Output
 
-After running the experiment, you should see:
+After running the pipeline, you should see the following outputs:
 
-### 🎯 Key Findings
-- **Random Forest**: High accuracy (~87%) but poor calibration (ECE ~0.15)
-- **SVM with Platt Scaling**: Best calibration (ECE ~0.045) after post-hoc correction
-- **Logistic Regression**: Moderate accuracy (~84%) but surprisingly poor calibration (ECE ~0.087)
-- **Post-hoc calibration methods significantly improve reliability**
+### 1. Console Output
+```
+🚀 Running calibration pipeline...
 
-### 💰 Business Impact
-- **Poorly calibrated models** can lead to $1-2M unexpected losses
-- **Well-calibrated models** enable better risk management
-- **Calibration investment** typically has 1000%+ ROI
+📊 Step 1: Running calibration analysis...
+📂 Loading trained models...
+✅ Models loaded successfully
+🔍 Calibrating LogisticRegression...
+🔍 Calibrating RandomForest...
+🔍 Calibrating SVM_RBF...
+📊 Creating summary table...
+📊 Saving calibration results...
+✅ Calibration analysis completed successfully!
 
-### 📈 Calibration Improvements
-- **Platt Scaling**: 20-50% ECE improvement
-- **Isotonic Regression**: 30-60% ECE improvement
-- **Best method varies** by model type
+🎨 Step 2: Generating visualizations...
+📂 Loading calibration results...
+✅ Results loaded successfully
+📈 Creating reliability diagrams...
+✅ Reliability diagrams created
+🎉 All visualizations generated successfully!
+📁 Check results/visualizations for all visualization files
 
-## 📁 Output Files
+✅ Pipeline completed successfully!
+```
 
-The experiment generates several important files:
-
+### 2. Generated Files
 ```
 results/
-├── model_metrics.csv              # Basic model performance
-├── calibration_comparison.csv     # Calibration analysis
-├── business_impact_analysis.csv   # Financial impact
-├── trained_models.pkl            # Trained models
-├── calibrated_models.pkl         # Calibrated variants
+├── model_metrics.csv              # Basic model performance comparison
+├── model_predictions.pkl          # Saved model predictions
+├── calibration_comparison.csv     # Detailed calibration analysis
+├── business_impact_analysis.csv   # Financial impact assessment  
 └── visualizations/
     ├── reliability_diagrams.png   # Calibration curves
-    └── business_impact_plots.png  # Financial analysis
+    └── [other generated plots]
 ```
 
-## 🔍 Understanding the Results
+## 🔍 Viewing Results
 
 ### Reliability Diagrams
-- **Perfect calibration** = diagonal line
-- **Overconfident models** = below diagonal
-- **Underconfident models** = above diagonal
+Open `results/visualizations/reliability_diagrams.png` to see how well each model's probabilities match actual outcomes.
 
-### Key Metrics
-- **ECE (Expected Calibration Error)**: Lower is better (< 0.05 is good)
-- **Brier Score**: Lower is better (measures probability accuracy)
-- **Hosmer-Lemeshow p-value**: Higher is better (> 0.05 indicates good calibration)
+### Calibration Metrics
+Open `results/calibration_comparison.csv` to see detailed metrics for each model and calibration method.
 
-### Business Metrics
-- **Calibration Error**: Difference between predicted and actual default rates
-- **Unexpected Loss**: Financial surprise due to miscalibration
-- **Loss Surprise %**: Unexpected loss as % of predicted loss
+## 🔧 Troubleshooting
+
+### Common Issues
+
+#### 1. Import Errors
+```
+ModuleNotFoundError: No module named 'models'
+```
+
+**Solution**: Make sure to run scripts from the project root directory, not from inside subdirectories.
+
+#### 2. Missing Directories
+```
+FileNotFoundError: [Errno 2] No such file or directory: 'results/trained_models.pkl'
+```
+
+**Solution**: Run `python setup_dirs.py` to create all required directories.
+
+#### 3. Serialization Errors
+```
+AttributeError: Can't get attribute 'TemperatureScaledModel' on <module '__main__'...
+```
+
+**Solution**: Run the full pipeline with `python run_calibration_pipeline.py` to ensure consistent serialization.
+
+## 🎓 Next Steps
+
+After running the experiment:
+
+1. Examine the reliability diagrams to understand calibration differences
+2. Compare the metrics in `calibration_comparison.csv`
+3. Explore the business impact analysis to see financial implications
+4. Try modifying model parameters to see how they affect calibration
+
+For more detailed information, refer to the documentation in the `docs/` directory.
 
 ## 🛠️ Troubleshooting
 

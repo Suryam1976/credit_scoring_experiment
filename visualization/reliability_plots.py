@@ -9,6 +9,11 @@ Author: Credit Scoring Experiment
 Date: June 2025
 """
 
+import os
+import sys
+# Add the project root directory to the Python path
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import numpy as np
 import pandas as pd
 import pickle
@@ -30,6 +35,9 @@ from sklearn.metrics import roc_curve, auc
 # Set style
 plt.style.use('seaborn-v0_8')
 sns.set_palette("husl")
+
+# Import the shared model class
+from models.model_utils import TemperatureScaledModel
 
 class CalibrationVisualizer:
     """
@@ -53,17 +61,17 @@ class CalibrationVisualizer:
         Load calibration results and comparison data
         
         Returns:
-            Tuple of (calibration_results, comparison_dataframe)
+            Tuple of (model_predictions, comparison_dataframe)
         """
         print("📂 Loading calibration results...")
         
-        # Load calibrated models
-        calibrated_models_path = self.results_dir / "calibrated_models.pkl"
-        if not calibrated_models_path.exists():
-            raise FileNotFoundError("No calibrated models found. Run calibration analysis first.")
+        # Load model predictions instead of calibrated models
+        predictions_path = self.results_dir / "model_predictions.pkl"
+        if not predictions_path.exists():
+            raise FileNotFoundError("No model predictions found. Run calibration analysis first.")
             
-        with open(calibrated_models_path, 'rb') as f:
-            calibration_results = pickle.load(f)
+        with open(predictions_path, 'rb') as f:
+            model_predictions = pickle.load(f)
         
         # Load comparison dataframe
         comparison_path = self.results_dir / "calibration_comparison.csv"
@@ -73,7 +81,7 @@ class CalibrationVisualizer:
         comparison_df = pd.read_csv(comparison_path)
         
         print("✅ Results loaded successfully")
-        return calibration_results, comparison_df
+        return model_predictions, comparison_df
     
     def load_data_splits(self) -> Dict[str, Any]:
         """
@@ -91,54 +99,49 @@ class CalibrationVisualizer:
             
         return data_splits
     
-    def create_reliability_diagram(self, calibration_results: Dict[str, Any], 
+    def create_reliability_diagram(self, model_predictions: Dict[str, np.ndarray], 
                                  data_splits: Dict[str, Any], save: bool = True) -> None:
         """
-        Create reliability diagrams comparing original and calibrated models
+        Create reliability diagrams using saved predictions
         
         Args:
-            calibration_results: Results from calibration analysis
+            model_predictions: Dictionary of model predictions
             data_splits: Data splits dictionary
             save: Whether to save the plot
         """
         print("📈 Creating reliability diagrams...")
         
-        X_test = data_splits['X_test']
         y_test = data_splits['y_test']
         
+        # Group models by base name
+        model_groups = {}
+        for model_name, y_prob in model_predictions.items():
+            base_name = model_name.split('_')[0]  # Assuming format like "LogisticRegression_Original"
+            if base_name not in model_groups:
+                model_groups[base_name] = {}
+            
+            variant_name = model_name.replace(base_name + '_', '')
+            model_groups[base_name][variant_name] = y_prob
+        
         # Set up subplots
-        n_models = len(calibration_results)
+        n_models = len(model_groups)
         fig, axes = plt.subplots(1, n_models, figsize=(6*n_models, 6))
         if n_models == 1:
             axes = [axes]
         
-        for i, (model_name, model_variants) in enumerate(calibration_results.items()):
+        for i, (model_name, variants) in enumerate(model_groups.items()):
             ax = axes[i]
             
             # Plot calibration curves for each variant
-            for j, (variant_name, variant_data) in enumerate(model_variants.items()):
-                if 'model' in variant_data:
-                    model = variant_data['model']
-                    y_prob = model.predict_proba(X_test)[:, 1]
-                    
-                    # Calculate calibration curve
-                    fraction_of_positives, mean_predicted_value = calibration_curve(
-                        y_test, y_prob, n_bins=10
-                    )
-                    
-                    # Plot with different styles
-                    if variant_name == 'original':
-                        ax.plot(mean_predicted_value, fraction_of_positives, 
-                                marker='s', linewidth=3, markersize=8,
-                                color=self.colors[0], label='Original', alpha=0.8)
-                    elif variant_name == 'platt':
-                        ax.plot(mean_predicted_value, fraction_of_positives, 
-                                marker='o', linewidth=2, markersize=6,
-                                color=self.colors[1], label='Platt Scaling', alpha=0.8)
-                    elif variant_name == 'isotonic':
-                        ax.plot(mean_predicted_value, fraction_of_positives, 
-                                marker='^', linewidth=2, markersize=6,
-                                color=self.colors[2], label='Isotonic Regression', alpha=0.8)
+            for variant_name, y_prob in variants.items():
+                # Calculate calibration curve
+                fraction_of_positives, mean_predicted_value = calibration_curve(
+                    y_test, y_prob, n_bins=10
+                )
+                
+                # Plot the calibration curve
+                ax.plot(mean_predicted_value, fraction_of_positives, 's-', 
+                       label=f'{variant_name}')
             
             # Perfect calibration line
             ax.plot([0, 1], [0, 1], 'k--', alpha=0.8, linewidth=2, label='Perfect Calibration')
@@ -146,7 +149,7 @@ class CalibrationVisualizer:
             # Formatting
             ax.set_xlabel('Mean Predicted Probability', fontsize=12)
             ax.set_ylabel('Fraction of Positives', fontsize=12)
-            ax.set_title(f'{model_name.replace("_", " ")}\nReliability Diagram', fontsize=14, fontweight='bold')
+            ax.set_title(f'{model_name}\nReliability Diagram', fontsize=14, fontweight='bold')
             ax.legend(frameon=True, fancybox=True, shadow=True)
             ax.grid(True, alpha=0.3)
             ax.set_xlim([0, 1])
@@ -170,11 +173,11 @@ class CalibrationVisualizer:
         
         try:
             # Load results
-            calibration_results, comparison_df = self.load_results()
+            model_predictions, comparison_df = self.load_results()
             data_splits = self.load_data_splits()
             
             # Create reliability diagrams
-            self.create_reliability_diagram(calibration_results, data_splits)
+            self.create_reliability_diagram(model_predictions, data_splits)
             
             print("\n🎉 All visualizations generated successfully!")
             print(f"📁 Check {self.viz_dir} for all visualization files")
@@ -206,9 +209,9 @@ def main():
     
     try:
         if args.reliability_only:
-            calibration_results, _ = visualizer.load_results()
+            model_predictions, _ = visualizer.load_results()
             data_splits = visualizer.load_data_splits()
-            visualizer.create_reliability_diagram(calibration_results, data_splits)
+            visualizer.create_reliability_diagram(model_predictions, data_splits)
         else:
             # Generate all visualizations
             visualizer.generate_all_visualizations()
@@ -219,3 +222,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+

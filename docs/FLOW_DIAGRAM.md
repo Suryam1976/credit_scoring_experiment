@@ -42,188 +42,140 @@ graph TB
     T --> U
 ```
 
-## Detailed Data Pipeline
-
-```mermaid
-graph LR
-    A[Raw German Credit Data<br/>1000 samples, 20 features] --> B[Data Loading<br/>pandas.read_csv]
-    B --> C{Data Quality Check}
-    C -->|Missing Values?| D[Handle Missing Data<br/>Imputation/Removal]
-    C -->|Clean Data| E[Feature Engineering]
-    D --> E
-    
-    E --> F[Categorical Encoding<br/>One-hot/Label Encoding]
-    F --> G[Numerical Scaling<br/>StandardScaler]
-    G --> H[Feature Selection<br/>Correlation Analysis]
-    
-    H --> I[Stratified Split<br/>60% Train / 20% Val / 20% Test]
-    I --> J[Training Set<br/>600 samples]
-    I --> K[Validation Set<br/>200 samples]
-    I --> L[Test Set<br/>200 samples]
-```
-
-## Model Training and Evaluation Pipeline
-
-```mermaid
-graph TD
-    A[Training Data] --> B[Model Training Phase]
-    
-    B --> C[Logistic Regression<br/>C=1.0, max_iter=1000]
-    B --> D[Random Forest<br/>n_estimators=100, max_depth=10]
-    B --> E[SVM with RBF<br/>C=1.0, gamma=scale]
-    
-    C --> F[LR Predictions<br/>Well-calibrated probabilities]
-    D --> G[RF Predictions<br/>Overconfident probabilities]
-    E --> H[SVM Predictions<br/>Poorly calibrated probabilities]
-    
-    F --> I[Validation Set Evaluation]
-    G --> I
-    H --> I
-    
-    I --> J{Calibration Quality Check}
-    J -->|Well Calibrated<br/>ECE < 0.05| K[Keep Original Model]
-    J -->|Poorly Calibrated<br/>ECE > 0.05| L[Apply Calibration Methods]
-    
-    L --> M[Platt Scaling<br/>Sigmoid fitting]
-    L --> N[Isotonic Regression<br/>Monotonic mapping]
-    L --> O[Temperature Scaling<br/>Neural network approach]
-    
-    K --> P[Final Test Set Evaluation]
-    M --> P
-    N --> P
-    O --> P
-```
-
-## Evaluation and Analysis Framework
+## Detailed Implementation Architecture
 
 ```mermaid
 graph TB
-    A[Model Predictions on Test Set] --> B[Accuracy Metrics Calculation]
-    A --> C[Calibration Metrics Calculation]
+    A[train_models.py] --> B[Data Loading & Preprocessing]
+    B --> C[Model Training]
+    C --> D[Save Trained Models<br/>results/trained_models.pkl]
     
-    B --> D[Classification Accuracy<br/>Precision, Recall, F1]
-    B --> E[ROC-AUC Analysis<br/>Discrimination Ability]
+    D --> E[calibration.py]
+    E --> F[Load Trained Models]
+    F --> G[Apply Calibration Methods]
+    G --> G1[Platt Scaling]
+    G --> G2[Isotonic Regression]
+    G --> G3[Temperature Scaling<br/>TemperatureScaledModel]
     
-    C --> F[Reliability Diagram<br/>Bin-based Analysis]
-    C --> G[Expected Calibration Error<br/>ECE Calculation]
-    C --> H[Brier Score<br/>Probability Accuracy]
-    C --> I[Hosmer-Lemeshow Test<br/>Statistical Significance]
+    G1 --> H[Calculate Calibration Metrics]
+    G2 --> H
+    G3 --> H
     
-    D --> J[Comparative Analysis]
-    E --> J
-    F --> J
-    G --> J
-    H --> J
-    I --> J
+    H --> I[Save Calibration Results]
+    I --> I1[Save Model Predictions<br/>model_predictions.pkl]
+    I --> I2[Save Comparison Table<br/>calibration_comparison.csv]
     
-    J --> K[Business Impact Modeling]
-    K --> L[Loan Approval Simulation<br/>Risk Threshold Analysis]
-    K --> M[Financial Impact Calculation<br/>Expected vs Actual Losses]
+    I1 --> J[reliability_plots.py]
+    I2 --> J
+    J --> K[Load Predictions & Results]
+    K --> L[Generate Reliability Diagrams]
+    K --> M[Generate Business Impact Analysis]
     
-    L --> N[Visualization Generation]
+    L --> N[Save Visualizations<br/>results/visualizations/]
     M --> N
-    
-    N --> O[Reliability Plots<br/>Calibration Curves]
-    N --> P[Probability Histograms<br/>Distribution Analysis]
-    N --> Q[Business Impact Dashboard<br/>ROI Analysis]
-    
-    O --> R[Statistical Testing<br/>Significance Analysis]
-    P --> R
-    Q --> R
-    
-    R --> S[Final Report Generation<br/>Results Summary]
 ```
 
-## Calibration Methods Detail Flow
+## Module Structure and Dependencies
+
+```mermaid
+graph TB
+    A[models/model_utils.py] --> B[TemperatureScaledModel Class]
+    
+    C[models/calibration.py] --> A
+    C --> D[CalibrationAnalyzer Class]
+    D --> D1[apply_platt_scaling]
+    D --> D2[apply_isotonic_regression]
+    D --> D3[apply_temperature_scaling]
+    D --> D4[calculate_calibration_metrics]
+    
+    E[visualization/reliability_plots.py] --> A
+    E --> F[CalibrationVisualizer Class]
+    F --> F1[load_results]
+    F --> F2[create_reliability_diagram]
+    F --> F3[generate_all_visualizations]
+    
+    G[run_calibration_pipeline.py] --> C
+    G --> E
+```
+
+## Data Flow and Serialization
 
 ```mermaid
 graph LR
-    A[Uncalibrated Model Predictions] --> B{Calibration Method Selection}
+    A[Raw Data] --> B[train_models.py]
+    B --> C[Trained Models<br/>trained_models.pkl]
     
-    B --> C[Platt Scaling]
-    C --> C1[Fit Sigmoid Function<br/>P_cal = 1/(1+exp(A*P+B))]
-    C1 --> C2[Optimize A and B parameters<br/>on validation set]
-    C2 --> C3[Apply to test predictions]
+    C --> D[calibration.py]
+    D --> E[Model Predictions<br/>model_predictions.pkl]
+    D --> F[Calibration Metrics<br/>calibration_comparison.csv]
     
-    B --> D[Isotonic Regression]
-    D --> D1[Fit Monotonic Function<br/>Non-parametric approach]
-    D1 --> D2[Preserve probability ordering<br/>while improving calibration]
-    D2 --> D3[Apply to test predictions]
-    
-    B --> E[Temperature Scaling]
-    E --> E1[Add temperature parameter T<br/>P_cal = softmax(logits/T)]
-    E1 --> E2[Optimize T on validation set<br/>minimize NLL]
-    E2 --> E3[Apply to test predictions]
-    
-    C3 --> F[Calibrated Predictions]
-    D3 --> F
-    E3 --> F
-    
-    F --> G[Post-calibration Evaluation]
-    G --> H[Compare ECE before/after]
-    G --> I[Assess impact on accuracy]
-    G --> J[Business impact analysis]
+    E --> G[reliability_plots.py]
+    F --> G
+    G --> H[Visualizations<br/>reliability_diagrams.png]
 ```
 
-## Business Impact Analysis Flow
+## Python Path and Import Resolution
+
+```mermaid
+graph TB
+    A[Project Root Directory] --> B[sys.path.append]
+    B --> C[Absolute Imports<br/>from models.model_utils import ...]
+    
+    D[models/calibration.py] --> B
+    E[visualization/reliability_plots.py] --> B
+    
+    F[run_calibration_pipeline.py] --> G[Subprocess Execution<br/>os.system]
+    G --> D
+    G --> E
+```
+
+## Execution Flow
 
 ```mermaid
 graph TD
-    A[Calibrated vs Uncalibrated Predictions] --> B[Define Business Scenario]
-    B --> C[Credit Approval Decision<br/>Threshold: P(default) < 0.3]
+    A[Setup Environment] --> B[Install Dependencies<br/>pip install -r requirements.txt]
+    B --> C[Create Directories<br/>python setup_dirs.py]
     
-    C --> D[Simulate Loan Portfolio<br/>10,000 loans, $10K average]
+    C --> D[Run Complete Pipeline<br/>python run_calibration_pipeline.py]
     
-    D --> E[Well-Calibrated Model Scenario]
-    D --> F[Overconfident Model Scenario]
+    D --> E[Train Models<br/>python models/calibration.py]
+    E --> F[Apply Calibration<br/>python models/calibration.py]
+    F --> G[Generate Visualizations<br/>python visualization/reliability_plots.py]
     
-    E --> E1[Predicted Risk: 20%<br/>Actual Risk: 22%]
-    E1 --> E2[Expected Loss: $2M<br/>Actual Loss: $2.2M]
-    E2 --> E3[Difference: $200K<br/>Manageable Risk]
+    H[Alternative: Step-by-Step] --> I[Train Models<br/>python models/train_models.py --prepare-data --train-all]
+    I --> J[Apply Calibration<br/>python models/calibration.py]
+    J --> K[Generate Visualizations<br/>python visualization/reliability_plots.py]
+```
+
+## Temperature Scaling Implementation
+
+```mermaid
+graph TB
+    A[apply_temperature_scaling] --> B[Get Model Logits<br/>_get_model_logits]
+    B --> C[Find Optimal Temperature<br/>_find_optimal_temperature]
+    C --> D[Create TemperatureScaledModel]
     
-    F --> F1[Predicted Risk: 5%<br/>Actual Risk: 25%]
-    F1 --> F2[Expected Loss: $500K<br/>Actual Loss: $2.5M]
-    F2 --> F3[Difference: $2M<br/>Significant Risk]
-    
-    E3 --> G[ROI Calculation for Calibration]
-    F3 --> G
-    
-    G --> H[Cost of Calibration<br/>Development + Validation]
-    G --> I[Benefit of Calibration<br/>Risk Reduction]
-    
-    H --> J[ROI = (Benefit - Cost) / Cost]
-    I --> J
-    
-    J --> K[Business Recommendation<br/>Implement Calibration]
+    E[TemperatureScaledModel Class] --> F[__init__<br/>Store model & temperature]
+    E --> G[predict_proba<br/>Apply temperature scaling]
+    G --> H[Get Logits<br/>_get_model_logits]
+    H --> I[Scale Logits<br/>_temperature_scaling]
+    I --> J[Return Calibrated Probabilities]
 ```
 
 ## Visualization Pipeline
 
 ```mermaid
 graph TB
-    A[Analysis Results] --> B[Visualization Generation]
+    A[CalibrationVisualizer] --> B[load_results<br/>Load model_predictions.pkl]
+    A --> C[load_data_splits<br/>Load test data]
     
-    B --> C[Reliability Diagrams<br/>matplotlib/seaborn]
-    C --> C1[Perfect Calibration Line<br/>y = x reference]
-    C1 --> C2[Observed vs Predicted<br/>by probability bins]
-    C2 --> C3[Confidence Intervals<br/>Bootstrap sampling]
+    B --> D[create_reliability_diagram]
+    C --> D
     
-    B --> D[Probability Distributions<br/>histogram plots]
-    D --> D1[Show prediction confidence<br/>distribution shape]
-    D1 --> D2[Compare across models<br/>side-by-side plots]
-    
-    B --> E[Business Impact Dashboard<br/>plotly interactive]
-    E --> E1[Financial metrics by model<br/>loss calculations]
-    E1 --> E2[ROI scenarios<br/>sensitivity analysis]
-    
-    C3 --> F[Static Report Figures<br/>PNG/PDF export]
-    D2 --> F
-    E2 --> G[Interactive Dashboard<br/>HTML export]
-    
-    F --> H[Integrated Report<br/>Jupyter notebook]
-    G --> H
-    
-    H --> I[Final Deliverable<br/>Complete analysis]
+    D --> E[Group Models by Base Name]
+    E --> F[Calculate Calibration Curves]
+    F --> G[Plot Reliability Diagrams]
+    G --> H[Save Visualizations<br/>reliability_diagrams.png]
 ```
 
 ## File Organization Structure

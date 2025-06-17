@@ -8,16 +8,10 @@ This project provides a hands-on demonstration of why **calibration** is as impo
 
 ## 🔑 Key Concepts
 
-### Accuracy vs Calibration
-- **Accuracy**: How often the model makes correct predictions (85% accuracy = 85% correct classifications)
-- **Calibration**: How well predicted probabilities match actual outcomes (30% predicted risk should result in 30% actual defaults)
-
-### Why This Matters
-A model might correctly classify 90% of loan applications but predict 5% default risk when the actual rate is 25%. This overconfidence leads to:
-- ❌ Poor business decisions
-- 💰 Unexpected financial losses  
-- ⚖️ Regulatory compliance issues
-- 📊 Unreliable risk management
+- **Accuracy**: How often a model makes correct predictions
+- **Calibration**: How well predicted probabilities match actual outcomes
+- **Business Impact**: Financial consequences of miscalibrated models
+- **Post-hoc Calibration**: Methods to improve probability estimates
 
 ## 📊 Dataset
 
@@ -27,20 +21,22 @@ A model might correctly classify 90% of loan applications but predict 5% default
 - Binary target: Good credit (70%) vs Bad credit (30%)
 - Publicly available and well-documented
 
-## 🏗️ Project Structure
+## 📁 Project Structure
 
 ```
 credit_scoring_experiment/
 ├── 📁 docs/                    # Documentation
 │   ├── VISION_DOCUMENT.md      # Project vision and objectives
 │   ├── FLOW_DIAGRAM.md         # Process flow diagrams
-│   └── API_DOCUMENTATION.md    # Code documentation
+│   ├── API_DOCUMENTATION.md    # Code documentation
+│   └── TEMPERATURE_SCALING_GUIDE.md # Guide to temperature scaling
 ├── 📁 data/                    # Data storage
 │   ├── raw/                    # Original dataset
 │   └── processed/              # Cleaned and split data
 ├── 📁 models/                  # Model training and evaluation
 │   ├── train_models.py         # Model training pipeline
 │   ├── calibration.py          # Calibration methods
+│   ├── model_utils.py          # Shared model utilities
 │   ├── evaluation.py           # Metrics and testing
 │   └── model_configs.json      # Model configurations
 ├── 📁 visualization/           # Plotting and visualization
@@ -49,13 +45,16 @@ credit_scoring_experiment/
 │   └── probability_distributions.py  # Prediction distributions
 ├── 📁 results/                 # Analysis outputs
 │   ├── model_metrics.csv       # Performance comparisons
-│   ├── calibration_results.json # Calibration analysis
-│   └── business_impact_analysis.pdf # Financial impact report
+│   ├── model_predictions.pkl   # Saved model predictions
+│   ├── calibration_comparison.csv # Calibration analysis
+│   └── visualizations/         # Generated plots
 ├── 📁 notebooks/               # Interactive analysis
 │   ├── 01_data_exploration.ipynb     # Data analysis
 │   ├── 02_model_training.ipynb       # Model development
 │   ├── 03_calibration_analysis.ipynb # Calibration study
 │   └── 04_business_impact.ipynb     # Business case analysis
+├── setup_dirs.py               # Directory setup script
+├── run_calibration_pipeline.py # Complete pipeline runner
 ├── README.md                   # This file
 └── requirements.txt           # Python dependencies
 ```
@@ -71,24 +70,24 @@ python setup_dirs.py  # Creates all necessary directories
 
 ### 2. Run the Experiment
 ```bash
-# Option A: Full pipeline
-python models/train_models.py --prepare-data --train-all
-python models/calibration.py
-python visualization/reliability_plots.py
-python visualization/business_impact.py
+# Option A: Full pipeline with a single command
+python run_calibration_pipeline.py
 
 # Option B: Step by step
-python models/train_models.py --prepare-data
-python models/train_models.py --train-all
+python models/train_models.py --prepare-data --train-all
 python models/calibration.py
 python visualization/reliability_plots.py
 python visualization/business_impact.py
 ```
 
-### 3. Explore Results
-- Open `notebooks/01_calibration_experiment.ipynb` for interactive analysis
-- View generated files in `results/` directory
-- Check `results/calibration_comparison.csv` for detailed metrics
+### 3. Explore the Results
+```bash
+# View the generated visualizations in:
+results/visualizations/
+
+# Examine the calibration metrics in:
+results/calibration_comparison.csv
+```
 
 ## 🎓 Key Experiments
 
@@ -113,7 +112,14 @@ python visualization/business_impact.py
 - 📊 Shows that "naturally calibrated" isn't always true
 - 💸 Business impact: Moderate risk
 
-### Experiment 4: Post-hoc Calibration
+### Experiment 4: Temperature Scaling Breakthrough
+**Advanced Calibration Method**
+- 🌡️ Single parameter (temperature T) calibration
+- ✅ Designed specifically for overconfident models
+- 📈 Handles extreme probabilities from GBDTs
+- 💰 Business impact: Often best for tree-based models
+
+### Experiment 5: Post-hoc Calibration
 **Calibration Methods Applied**
 - 🔧 Platt Scaling: Sigmoid calibration
 - 📈 Isotonic Regression: Monotonic mapping
@@ -181,79 +187,32 @@ Interactive visualization of financial implications
 ### Calibration Methods
 - **Platt Scaling**: Sigmoid function fitting
 - **Isotonic Regression**: Monotonic probability mapping  
-- **Temperature Scaling**: Neural network temperature parameter
+- **Temperature Scaling**: Single-parameter logit scaling (ideal for overconfident models)
 
-### Evaluation Metrics
-- **Accuracy Metrics**: Precision, Recall, F1-Score, AUC-ROC
-- **Calibration Metrics**: ECE, Brier Score, Reliability Diagrams
-- **Statistical Tests**: Hosmer-Lemeshow, Bootstrap Confidence Intervals
+### Implementation Notes
+- Models are saved as predictions rather than full objects to avoid serialization issues
+- Python path is configured in each script to enable proper imports
+- The `TemperatureScaledModel` class is defined in `models/model_utils.py` for sharing across modules
 
-## 📚 Educational Value
+## 🔧 Troubleshooting
 
-### Learning Objectives
-1. Understand the difference between accuracy and calibration
-2. Recognize when calibration matters in business applications
-3. Implement and evaluate calibration methods
-4. Quantify business impact of model miscalibration
-5. Apply statistical tests for calibration assessment
+### Common Issues
+- **Import Errors**: Make sure to run scripts from the project root directory
+- **Missing Directories**: Run `python setup_dirs.py` to create all required folders
+- **Serialization Errors**: If you modify class structures, you may need to rerun the full pipeline
 
-### Target Audience
-- **Data Scientists**: Learn advanced model evaluation techniques
-- **ML Engineers**: Understand production model requirements
-- **Risk Managers**: Appreciate model reliability importance
-- **Students**: Comprehensive case study in applied ML
+### Solutions
+- Use `python run_calibration_pipeline.py` for the most reliable execution
+- Check `PROJECT_UPDATES.md` for recent fixes and improvements
+- Ensure all dependencies are installed with `pip install -r requirements.txt`
 
-## 🎯 Success Criteria
+## 📚 Further Reading
 
-### Technical Success
-- [ ] ECE difference > 0.10 between well-calibrated and overconfident models
-- [ ] Statistical significance of calibration differences (p < 0.05)
-- [ ] Successful implementation of 3 calibration methods
-- [ ] Comprehensive visualization suite
+- See `docs/TEMPERATURE_SCALING_GUIDE.md` for details on temperature scaling
+- See `docs/FLOW_DIAGRAM.md` for detailed process flow diagrams
+- See `docs/VISION_DOCUMENT.md` for project objectives and design principles
 
-### Business Success  
-- [ ] Quantified financial impact > $1M difference
-- [ ] Clear ROI demonstration for calibration investment
-- [ ] Actionable recommendations for model deployment
-- [ ] Regulatory compliance considerations addressed
-
-### Educational Success
-- [ ] Clear documentation enabling replication
-- [ ] Interactive notebooks for hands-on learning
-- [ ] Visual demonstrations of key concepts
-- [ ] Practical implementation guidelines
-
-## 🔄 Next Steps
-
-### Phase 1: Foundation
-- [ ] Set up data pipeline
-- [ ] Implement basic model training
-- [ ] Create evaluation framework
-
-### Phase 2: Core Analysis
-- [ ] Complete calibration assessment
-- [ ] Statistical significance testing
-- [ ] Business impact modeling
-
-### Phase 3: Advanced Features  
-- [ ] Interactive visualizations
-- [ ] Sensitivity analysis
-- [ ] Additional calibration methods
-
-### Phase 4: Documentation & Delivery
-- [ ] Complete documentation
-- [ ] Code review and optimization
-- [ ] Final testing and validation
-
-## 🤝 Contributing
-
-This is an educational project designed for learning and demonstration. Feel free to:
-- Extend the analysis with additional datasets
-- Implement new calibration methods
-- Add more sophisticated business scenarios
-- Improve visualizations and documentation
-
-## 📄 License
+## 📝 License
 
 This project is designed for educational purposes. The German Credit Dataset is publicly available through the UCI Machine Learning Repository.
 
